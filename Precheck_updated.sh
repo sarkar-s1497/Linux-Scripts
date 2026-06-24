@@ -1,0 +1,207 @@
+#!/bin/bash
+
+# ==============================================================================
+# Script Name    : RHEL_Precheck.sh
+# Description    : This Take precheck of the system.
+# Author         : Sujit Sarkar
+# Email          :
+# Version        : 1.0.0
+# Date Created   : 2026-06-24
+# Last Modified  : 2026-06-24
+# ==============================================================================
+# Directory/File          : scripts/log/Precheck_$(hostname)_$(date +%F_%H-%M-%S).txt 
+# Notes          : Requires root privileges.
+# ==============================================================================
+
+# RHEL 9 System Pre-Check Script
+
+# Helper function for section headers
+print_header() {
+  echo -e "\n==========================================================="
+  echo -e " $1"
+  echo -e "==========================================================="
+}
+
+
+
+# Check if run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "[-] Please run as root (sudo)."
+  exit 1
+fi
+
+
+#Ensure the log  directory exists
+sudo mkdir -p /scripts/log
+
+#Auto-save all output to /scripts/log with hostname, date and time
+exec > "/scripts/log/Precheck_$(hostname)_$(date +%F_%H-%M-%S).txt"
+
+echo "========================================="
+echo "        RHEL 9 SYSTEM PRE-CHECK        "
+echo "========================================="
+
+echo "Hostname : $(hostname)"
+echo "IP Address : $(hostname -I)"
+
+# 1. View RHEL Version
+print_header "1. View RHEL Version"
+echo -e "\n[+] OS Version:"
+sudo cat /etc/redhat-release
+
+
+# 2. Kernel Release Version
+print_header "2. Kernel Release Version"
+echo -e "\n[+] Curent Kernel Release:"
+sudo uname -a
+
+echo -e "\n"
+
+echo -e "\n[+] Kernel Levels:"
+rpm -qa --last | grep -i kernel-core
+
+# 3. Server Hostname
+print_header "3. Server Hostname"
+echo -e "\n[+] Server Hostname:"
+sudo hostnamectl
+
+# 4. Server Uptime
+print_header "4. Server Uptime"
+echo -e "\n[+] Server Uptime:"
+sudo uptime
+
+# 5. System Hardware Info
+print_header "5. System Hardware Info"
+echo -e "\n[+] Hardware Information (Summary):"
+sudo lshw -short 2>/dev/null | head -n 30
+echo -e "\n"
+sudo dmidecode -t system | grep -E "Manufacturer|Product Name|Serial Number"
+
+# 6. Disk Usage Information
+print_header "6. Disk Usage Information"
+echo -e "\n[+] Disk Usage (Filesystems):"
+sudo df -hT
+echo -e "\n[+] Disk Usage (Filesystems using more than 70%):"
+sudo  df -hP | awk 'NR==1 || $5+0 >70'
+
+# 7. Filesystem Table
+print_header "7. Filesystem Table"
+echo -e "\n[+] Filesystem Table (/etc/fstab):"
+sudo cat /etc/fstab
+
+echo -e "\n[+] Mounted Filesystem's Parameters :"
+mount -v 
+
+# 8. Display Block Device
+print_header "8. Display Block Device"
+echo -e "\n[+] Block Devices (Disks and Partitions):"
+sudo lsblk -o NAME,FSTYPE,SIZE,MOUNTPOINT
+
+# 9. Physical Volume Details
+print_header "9. Physical Volume Details"
+echo -e "\n[+] LVM - Physical Volumes (PVs):"
+sudo pvs
+
+# 10. Volume Group Details
+print_header "10. Volume Group Details"
+echo -e "\n[+] LVM - Volume Groups (VGs):"
+sudo vgs
+
+# 11. Logical Volume Details
+print_header "11. Logical Volume Details"
+echo -e "\n[+] LVM - Logical Volumes (LVs):"
+sudo lvs
+
+# 12. Check Network Interfaces
+print_header "12. Check Network Interfaces"
+echo -e "\n[+] Network Interfaces:"
+sudo ip -br addr
+echo -e "\n"
+echo -e "\n"
+sudo ip -s -h link
+
+# 13. View Route / IP Details
+print_header "13. View Route / IP Details"
+echo -e "\n[+] Routing Table:"
+sudo ip -4 route
+
+# 14. Firewall Status
+print_header "14. Firewall Status"
+echo -e "\n[+] Firewall Status:"
+sudo systemctl status firewalld --no-pager 2>/dev/null | grep -E "Active|Main"
+
+echo -e "\n=== FIREWALL PORTS (ACTIVE ZONES) ==="
+sudo firewall-cmd --list-all 2>/dev/null || echo "Firewalld is not running."
+
+# 15. Open Ports (Listening)
+print_header "15. Open Ports (Listening)"
+echo -e "\n[+] Open Listening Ports:"
+sudo ss -tulpn
+
+sudo netstat -nr
+
+
+# 16. Running Services
+print_header "16. RUNNING SERVICES"
+echo -e "\n[+] RUNNING SERVICES:"
+sudo systemctl list-units --type=service --state=running
+ 
+
+#SEIM Splunk Agent
+echo -e "\n[+] SERVICES: (SEIM) Splunk Agent"
+sudo /opt/splunkforwarder/bin/splunk status | grep running || echo "SPLUNK is not running/Presnt."
+
+#Dynatrace One-View
+echo -e "\n[+] SERVICES: (Dynatrace) One-View"
+sudo systemctl status oneagent | grep -E "Active|Main" 2>/dev/null || echo "Oneagent is not running/Present."
+
+
+# 17. Crontab Entry
+print_header "17. Crontab Detail"
+echo -e "\n[+] Crontab Entry:"
+sudo crontab -l
+
+# 18. Running Proccess 
+print_header "18. Running Proccess"
+
+echo -e "\n[+] All Processes"
+ps -eaf | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] MQM Processes"
+ps -eaf | grep -i mqm | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] GIT Processes"
+ps -eaf | grep -i git | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] DB Processes"
+ps -eaf | grep -i pmon
+ps -eaf | grep -i pmon | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] DB Listner Processes"
+ps -eaf | grep -i tns
+ps -eaf | grep -i pmon | wc -l
+
+# 19. CPU Info
+print_header "19. CPU INFO"
+echo -e "\n[+] CPU INFO"
+lscpu | egrep "CPU|Model name|Core|Socket|Stepping"
+
+# 20 Memory Info
+print_header "20 Memory Info"
+echo -e "\n[+] Memory Info"
+free -mh
+
+
+echo -e "\n[!] Precheck script execution completed."
+
+echo "========================================="
+echo "              CHECK COMPLETE             "
+echo "========================================="
