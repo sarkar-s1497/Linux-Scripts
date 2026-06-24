@@ -9,7 +9,7 @@
 # Date Created   : 2026-06-24
 # Last Modified  : 2026-06-24
 # ==============================================================================
-# Usage          : ./backup_logs.sh [target_directory]
+# Directory/File          : scripts/log/Precheck_$(hostname)_$(date +%F_%H-%M-%S).txt 
 # Notes          : Requires root privileges.
 # ==============================================================================
 
@@ -29,6 +29,13 @@ if [ "$EUID" -ne 0 ]; then
   echo "[-] Please run as root (sudo)."
   exit 1
 fi
+
+
+#Ensure the log  directory exists
+sudo mkdir -p /scripts/log
+
+#Auto-save all output to /scripts/log with hostname, date and time
+exec > "/scripts/log/Precheck_$(hostname)_$(date +%F_%H-%M-%S).txt"
 
 echo "========================================="
 echo "        RHEL 9 SYSTEM PRE-CHECK        "
@@ -61,7 +68,7 @@ sudo uptime
 # 5. System Hardware Info
 print_header "5. System Hardware Info"
 echo -e "\n[+] Hardware Information (Summary):"
-sudo lshw -short 2>/dev/null | head -n 20
+sudo lshw -short 2>/dev/null | head -n 30
 echo -e "\n"
 sudo dmidecode -t system | grep -E "Manufacturer|Product Name|Serial Number"
 
@@ -70,7 +77,7 @@ print_header "6. Disk Usage Information"
 echo -e "\n[+] Disk Usage (Filesystems):"
 sudo df -hT
 echo -e "\n[+] Disk Usage (Filesystems using more than 70%):"
-sudo df -h | awk 'NR>1 {gsub("%","",$5); if($5 > 70) print $0}'
+sudo  df -hP | awk 'NR==1 || $5+0 >70'
 
 # 7. Filesystem Table
 print_header "7. Filesystem Table"
