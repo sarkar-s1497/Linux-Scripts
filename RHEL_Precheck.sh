@@ -108,6 +108,8 @@ sudo lvs
 print_header "12. Check Network Interfaces"
 echo -e "\n[+] Network Interfaces:"
 sudo ip -br addr
+echo -e "\n"
+echo -e "\n"
 sudo ip -s -h link
 
 # 13. View Route / IP Details
@@ -118,7 +120,7 @@ sudo ip -4 route
 # 14. Firewall Status
 print_header "14. Firewall Status"
 echo -e "\n[+] Firewall Status:"
-sudo systemctl status firewalld --no-pager
+sudo systemctl status firewalld --no-pager 2>/dev/null | grep -E "Active|Main"
 
 echo -e "\n=== FIREWALL PORTS (ACTIVE ZONES) ==="
 sudo firewall-cmd --list-all 2>/dev/null || echo "Firewalld is not running."
@@ -141,7 +143,7 @@ sudo /opt/splunkforwarder/bin/splunk status | grep running || echo "SPLUNK is no
 
 #Dynatrace One-View
 echo -e "\n[+] SERVICES: (Dynatrace) One-View"
-sudo systemctl status oneagent | grep -E "Active|Main" || echo "Oneagent is not running/Present."
+sudo systemctl status oneagent | grep -E "Active|Main" 2>/dev/null || echo "Oneagent is not running/Present."
 
 
 
