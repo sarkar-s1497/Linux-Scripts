@@ -1,5 +1,9 @@
 #!/bin/bash
 # ==============================================================================
+# Script Name    : Server_Health_Check.sh
+# Author         : Sujit Sarkar
+# Email          :
+# Version        : 1.0.0
 # ENTERPRISE RHEL 8 / RHEL 9 HEALTH CHECK & AUDIT SCRIPT
 # Compatibility: RHEL 8.x, RHEL 9.x
 # Features: Dynamic Thresholds, Security Audits, Network Status, Chrony Sync,
@@ -7,9 +11,9 @@
 # ==============================================================================
 
 # --- CONFIGURATION THRESHOLDS ---
-CPU_WARN=80
-MEM_WARN=85
-DISK_WARN=85
+CPU_WARN=75
+MEM_WARN=75
+DISK_WARN=70
 
 # Ensure script is run as root
 if [ "$EUID" -ne 0 ]; then
@@ -19,8 +23,8 @@ fi
 
 # Define Report Output
 DATE=$(date +'%Y-%m-%d_%H-%M-%S')
-LOG_DIR="/var/log/health_reports"
-REPORT_FILE="$LOG_DIR/advanced_report_$DATE.txt"
+LOG_DIR="/scripts/log"
+REPORT_FILE="$LOG_DIR/server_health_log_$(hostname)_$(date +%F_%H-%M-%S).txt"
 mkdir -p "$LOG_DIR"
 
 # ANSI Colors
@@ -40,27 +44,32 @@ print_banner() {
     echo -e "${BLUE}================================================================${NC}"
 }
 
+
 print_status() {
     local label="$1"
     local value="$2"
     local status="$3" # OK, WARN, CRIT
     case "$status" in
-        "OK")   echo -e "   %-30s : [ ${GREEN}OK${NC} ] ($value)" ;;
-        "WARN") echo -e "   %-30s : [ ${YELLOW}WARN${NC} ] ($value)" ;;
-        "CRIT") echo -e "   %-30s : [ ${RED}CRITICAL${NC} ] ($value)" ;;
-        *)      echo -e "   %-30s : $value" ;;
+        "OK")   printf "   %-35s : [ ${GREEN}OK${NC} ] (%s)\n" "$label" "$value" ;;
+        "WARN") printf "   %-35s : [ ${YELLOW}WARN${NC} ] (%s)\n" "$label" "$value" ;;
+        "CRIT") printf "   %-35s : [ ${RED}CRITICAL${NC} ] (%s)\n" "$label" "$value" ;;
+        *)      printf "   %-35s : (%s)\n" "$label" "$value" ;;
     esac
 }
+
+
 
 # Redirect all stdout and stderr to console and log file
 exec > >(tee -a "$REPORT_FILE") 2>&1
 
-echo -e "${CYAN}${BOLD}Executing Advanced Health Diagnostics on $(hostname) - $(date)${NC}\n"
+echo -e "${CYAN}${BOLD}Executing Health Check on $(hostname) - $(date)${NC}\n"
 
 # ==========================================
 # 1. SYSTEM IDENTITY & UPTIME
 # ==========================================
 print_banner "1. SYSTEM PROFILE & UPTIME"
+
+echo -e "   Date            : $(date)"
 echo -e "   Hostname        : $(hostname)"
 echo -e "   OS Release      : $(cat /etc/redhat-release)"
 echo -e "   Kernel Architecture: $(uname -r) ($(uname -m))"
@@ -155,7 +164,13 @@ fi
 
 # Failed Sudo Attempts
 FAILED_SUDO=$(journalctl --since "24 hours ago" | grep -c "auth failure\|COMMAND=")
-print_status "Privilege Elevation Failures" "$FAILED_SUDO attempts" "OK"
+print_status "Sudo Privilege Elevation Failures" "$FAILED_SUDO attempts" "OK"
+
+echo -e "\n"
+
+# Firewall Status
+echo -e "\n[+] FIREWALL SERVICES:"
+systemctl status firewalld --no-pager 2>/dev/null | grep -E "Active|Main"
 
 # ==========================================
 # 5. CORE SYSTEMD & NETWORK CHECKS
@@ -170,19 +185,11 @@ else
     print_status "NTP Sync (chronyd)" "Inactive/Stopped" "CRIT"
 fi
 
-# Failed Systemd Units
-FAILED_UNITS=$(systemctl --failed --property=Id --no-legend)
-if [ -z "$FAILED_UNITS" ]; then
-    print_status "Systemd Core Engine" "0 units failed" "OK"
-else
-    FAILED_COUNT=$(echo "$FAILED_UNITS" | wc -l)
-    print_status "Systemd Core Engine" "$FAILED_COUNT units failed" "CRIT"
-    echo "$FAILED_UNITS" | sed 's/^/    - /'
-fi
 
 # Network Connection Counts
 EST_CONN=$(ss -ant | grep -c ESTAB)
 echo -e "   Established Network Connections: $EST_CONN"
+
 
 # ==========================================
 # 6. TOP RESOURCE CONSUMERS
@@ -193,6 +200,26 @@ ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu | head -n 6 | sed 's/^/    /'
 
 echo -e "\n   Top 5 Processes by Memory Footprint:"
 ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%mem | head -n 6 | sed 's/^/    /'
+
+
+# ==========================================
+# 7. Running Services
+# ==========================================
+print_banner "7. All Core Running Services"
+
+# SEIM Splunk Agent
+echo -e "\n[+] SERVICES: (SEIM) Splunk Agent"
+/opt/splunkforwarder/bin/splunk status 2>/dev/null | grep running || echo -e "${RED}SPLUNK is not running/Present.${NC}"
+
+# Dynatrace One-View
+echo -e "\n[+] SERVICES: (Dynatrace) One-View"
+systemctl status oneagent 2>/dev/null | grep -E "Active|Main" || echo -e "${RED}Oneagent is not running/Present.${NC}"
+
+# Running Services
+echo -e "\n[+] RUNNING SERVICES:"
+systemctl list-units --type=service --state=running
+
+
 
 echo -e "\n${BLUE}================================================================${NC}"
 echo -e "${GREEN}${BOLD} Diagnostic complete. Clean report generated at: ${REPORT_FILE}${NC}"
