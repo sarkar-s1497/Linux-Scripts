@@ -78,6 +78,12 @@ dmidecode -t system | grep -E "Manufacturer|Product Name|Serial Number"
 print_header "6. Disk Usage Information"
 echo -e "\n[+] Disk Usage (Filesystems):"
 df -hT
+
+echo -e "\n"
+echo -e "\n[+] Disk Usage (Filesystems) Count:"
+df -hT | wc -l
+echo -e "\n"
+
 echo -e "\n[+] Disk Usage (Filesystems using more than 70%):"
 df -hP | awk 'NR==1 || $5+0 >70'
 
@@ -143,6 +149,57 @@ echo -e "\n[+] SERVICES: (SEIM) Splunk Agent"
 # Dynatrace One-View
 echo -e "\n[+] SERVICES: (Dynatrace) One-View"
 systemctl status oneagent 2>/dev/null | grep -E "Active|Main" || echo -e "${RED}Oneagent is not running/Present.${NC}"
+
+# 17. Crontab Entry
+print_header "17. Crontab Detail"
+echo -e "\n[+] Crontab Entry:"
+sudo crontab -l
+
+# 18. Running Proccess 
+print_header "18. Running Proccess"
+
+echo -e "\n[+] All Processes"
+ps -eaf | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] MQM Processes Count"
+ps -eaf | grep -i mqm | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] GIT Processes Count"
+ps -eaf | grep -i git | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] DB Processes"
+ps -eaf | grep -i pmon
+
+echo -e "\n"
+
+echo -e "\n[+] DB Processes count"
+ps -eaf | grep -i pmon | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] DB Listner Processes"
+ps -eaf | grep -i tns
+
+echo -e "\n"
+
+echo -e "\n[+] DB Listner Processes"
+ps -eaf | grep -i tns | wc -l
+
+# 19. CPU Info
+print_header "19. CPU INFO"
+echo -e "\n[+] CPU INFO"
+lscpu | egrep "CPU|Model name|Core|Socket|Stepping"
+
+# 20 Memory Info
+print_header "20 Memory Info"
+echo -e "\n[+] Memory Info"
+free -mh
 
 echo -e "\n[!] Precheck script execution completed."
 
