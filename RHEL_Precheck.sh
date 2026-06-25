@@ -52,8 +52,13 @@ sudo cat /etc/redhat-release
 
 # 2. Kernel Release Version
 print_header "2. Kernel Release Version"
-echo -e "\n[+] Kernel Release:"
+echo -e "\n[+] Curent Kernel Release:"
 sudo uname -a
+
+echo -e "\n"
+
+echo -e "\n[+] Kernel Levels:"
+rpm -qa --last | grep -i kernel-core
 
 # 3. Server Hostname
 print_header "3. Server Hostname"
@@ -83,6 +88,9 @@ sudo  df -hP | awk 'NR==1 || $5+0 >70'
 print_header "7. Filesystem Table"
 echo -e "\n[+] Filesystem Table (/etc/fstab):"
 sudo cat /etc/fstab
+
+echo -e "\n[+] Mounted Filesystem's Parameters :"
+mount -v 
 
 # 8. Display Block Device
 print_header "8. Display Block Device"
@@ -130,6 +138,8 @@ print_header "15. Open Ports (Listening)"
 echo -e "\n[+] Open Listening Ports:"
 sudo ss -tulpn
 
+sudo netstat -nr
+
 
 # 16. Running Services
 print_header "16. RUNNING SERVICES"
@@ -146,6 +156,48 @@ echo -e "\n[+] SERVICES: (Dynatrace) One-View"
 sudo systemctl status oneagent | grep -E "Active|Main" 2>/dev/null || echo "Oneagent is not running/Present."
 
 
+# 17. Crontab Entry
+print_header "17. Crontab Detail"
+echo -e "\n[+] Crontab Entry:"
+sudo crontab -l
+
+# 18. Running Proccess 
+print_header "18. Running Proccess"
+
+echo -e "\n[+] All Processes"
+ps -eaf | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] MQM Processes"
+ps -eaf | grep -i mqm | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] GIT Processes"
+ps -eaf | grep -i git | wc -l
+
+echo -e "\n"
+ 
+echo -e "\n[+] DB Processes"
+ps -eaf | grep -i pmon
+ps -eaf | grep -i pmon | wc -l
+
+echo -e "\n"
+
+echo -e "\n[+] DB Listner Processes"
+ps -eaf | grep -i tns
+ps -eaf | grep -i pmon | wc -l
+
+# 19. CPU Info
+print_header "19. CPU INFO"
+echo -e "\n[+] CPU INFO"
+lscpu | egrep "CPU|Model name|Core|Socket|Stepping"
+
+# 20 Memory Info
+print_header "20 Memory Info"
+echo -e "\n[+] Memory Info"
+free -mh
 
 
 echo -e "\n[!] Precheck script execution completed."
